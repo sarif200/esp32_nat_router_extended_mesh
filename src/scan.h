@@ -7,3 +7,4 @@
 
 void fillNodes();
 char *findTextColorForSSID(int8_t rssi);
+char *wifi_mesh_scan(char* ssid);

@@ -39,6 +39,8 @@
 
 #include "router_globals.h"
 
+#include "scan.h"
+
 // On board LED
 #define BLINK_GPIO 2
 
@@ -55,9 +57,12 @@ const int WIFI_CONNECTED_BIT = BIT0;
 uint16_t connect_count = 0;
 bool ap_connect = false;
 bool has_static_ip = false;
+int meshDepth = 2;
 
 uint32_t my_ip;
 uint32_t my_ap_ip;
+
+int meshSaticMacPart[] = {28,69};
 
 struct portmap_table_entry
 {
@@ -391,6 +396,28 @@ void fillMac()
         }
     }
 }
+// meshSaticMacPart[0]:meshSaticMacPart[1]:mm:rr:rr:rr
+void meshMac()
+{
+    int intMac[6] = {0};
+    intMac[0] = meshSaticMacPart[0];
+    intMac[1] = meshSaticMacPart[1];
+    intMac[2] = meshDepth;
+
+    for (int i=3; i<6 ;i++)
+    {
+        intMac[i] = esp_random() % 254 + 1;
+    }
+
+    
+    uint8_t uintMac[6] = {0};
+    for (int i = 0; i < 6; ++i)
+    {
+        uintMac[i] = intMac[i];
+    }
+    ESP_LOGI(TAG, "Setting MAC address: %x:%x:%x:%x:%x:%x", uintMac[0], uintMac[1], uintMac[2], uintMac[3], uintMac[4], uintMac[5]);
+    ESP_ERROR_CHECK(esp_base_mac_addr_set(uintMac));
+}
 
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data)
@@ -438,6 +465,8 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
 }
 const int CONNECTED_BIT = BIT0;
 #define JOIN_TIMEOUT_MS (2000)
+
+wifi_config_t wifi_config = {0};
 
 void wifi_init(const char *ssid, const char *passwd, const char *static_ip, const char *subnet_mask, const char *gateway_addr, const char *ap_ssid, const char *ap_passwd, const char *ap_ip)
 {
@@ -490,7 +519,7 @@ void wifi_init(const char *ssid, const char *passwd, const char *static_ip, cons
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
     /* ESP WIFI CONFIG */
-    wifi_config_t wifi_config = {0};
+    
     wifi_config_t ap_config = {
         .ap = {
             .authmode = WIFI_AUTH_WPA2_PSK,
@@ -642,11 +671,15 @@ void app_main(void)
 #endif
 
     fillMac();
+    //meshMac();
+    
     get_config_param_str("ssid", &ssid);
     if (ssid == NULL)
     {
         ssid = param_set_default("");
     }
+    char* stat_ssid = "Netwerk van Michel";
+    ESP_LOGI(TAG,"TEST scan %s", wifi_mesh_scan(stat_ssid));
     get_config_param_str("passwd", &passwd);
     if (passwd == NULL)
     {

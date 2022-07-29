@@ -154,6 +154,70 @@ static char *wifi_scan(void)
     return a_ptr;
 }
 
+/* Initialize Wi-Fi as sta and set scan method */
+char *wifi_mesh_scan(char* ssid)
+{
+    vTaskDelay(1000 / portTICK_RATE_MS);
+    esp_wifi_disconnect();
+    vTaskDelay(1000 / portTICK_RATE_MS);
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    uint16_t number = DEFAULT_SCAN_LIST_SIZE;
+    wifi_ap_record_t ap_info[DEFAULT_SCAN_LIST_SIZE];
+    uint16_t ap_count = 0;
+    memset(ap_info, 0, sizeof(ap_info));
+
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_start());
+    wifi_scan_config_t scan_config = {
+        .ssid = 0,//(uint8_t*)ssid, 
+        .bssid = 0,
+		.channel = 0,	/* 0--all channel scan */
+		.show_hidden = 1,
+		.scan_type = WIFI_SCAN_TYPE_ACTIVE,
+		.scan_time.active.min = 120,
+		.scan_time.active.max = 150,
+	};
+    //scan_config.ssid = (uint8_t*)ssid;
+    ESP_LOGI(TAG,"ssid: %s ", ssid);
+    ESP_ERROR_CHECK(esp_wifi_scan_start(&scan_config, true));
+    ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&number, ap_info));
+    ESP_ERROR_CHECK(esp_wifi_scan_get_ap_num(&ap_count));
+    ESP_LOGI(TAG, "Total APs scanned = %u", ap_count);
+
+    char result[DEFAULT_SCAN_LIST_SIZE * 100];
+    strcpy(result, "");
+   
+    for (int i = 0; (i < DEFAULT_SCAN_LIST_SIZE) && (i < ap_count); i++)
+    {
+        ESP_LOGI(TAG, "SSID \t\t%s", ap_info[i].ssid);
+        ESP_LOGI(TAG, "RSSI \t\t%d", ap_info[i].rssi);
+        ESP_LOGI(TAG,"BSSID \t\t%02X%02X%02X%02X%02X%02X", ap_info[i].bssid[0], ap_info[i].bssid[1], ap_info[i].bssid[2], ap_info[i].bssid[3], ap_info[i].bssid[4], ap_info[i].bssid[5]);
+        //print_auth_mode(ap_info[i].authmode);
+        //if (ap_info[i].authmode != WIFI_AUTH_WEP)
+       // {
+       //     print_cipher_type(ap_info[i].pairwise_cipher, ap_info[i].group_cipher);
+        //}
+        //ESP_LOGI(TAG, "Channel \t\t%d\n", ap_info[i].primary);
+
+        if (strcmp((char*)ap_info[i].ssid,ssid) == 0){
+            char *tmp = malloc(100);
+            
+
+            //sprintf(tmp, "%s\x03%d\x05", ap_info[i].bssid, ap_info[i].rssi);
+            sprintf(tmp, "\t%02X%02X%02X%02X%02X%02X \x03%d\x05", ap_info[i].bssid[0], ap_info[i].bssid[1], ap_info[i].bssid[2], ap_info[i].bssid[3], ap_info[i].bssid[4], ap_info[i].bssid[5], ap_info[i].rssi);
+
+            strcat(result, tmp);
+            free(tmp);
+        }
+    }
+
+    char *a_ptr = result;
+    ESP_ERROR_CHECK(esp_wifi_stop());
+    return a_ptr;
+}
+
 void fillNodes()
 {
     // Initialize NVS
